@@ -1,0 +1,32 @@
+{
+  "name": "aas-backend",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node ./bin/www",
+    "dev": "NODE_ENV=development node ./bin/www",
+    "local": "NODE_ENV=local node ./bin/www",
+    "prod": "NODE_ENV=production node ./bin/www",
+    "test": "NODE_ENV=$ENV mocha"
+  },
+  "dependencies": {
+    "cookie-parser": "~1.4.4",
+    "debug": "~2.6.9",
+    "express": "~4.16.1",
+    "fluent-ffmpeg": "^2.1.2",
+    "http-errors": "~1.6.3",
+    "ibm-watson": "^4.4.0",
+    "jade": "~1.11.0",
+    "mocha": "^6.2.0",
+    "moment-timezone": "^0.5.26",
+    "morgan": "~1.9.1",
+    "request": "^2.88.0",
+    "should": "^13.2.3",
+    "srt2xmeml": "^0.1.6",
+    "supertest": "^4.0.2",
+    "swagger-jsdoc": "^3.4.0",
+    "swagger-ui-express": "^4.0.7",
+    "winston": "^3.2.1",
+    "winston-daily-rotate-file": "^3.10.0"
+  }
+}

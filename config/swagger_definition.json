@@ -1,0 +1,9 @@
+{
+    "info": {
+        "title": "AAS Backend",
+        "version": "1.0.0",
+        "description": "AAS Backend API"
+    },
+    "host": "localhost:3000",
+    "basePath": "/"
+}
