@@ -93,32 +93,24 @@ router.get('/', function(req, res, next) {
   res.render('index', { title: 'Express' });
 });
 
-router.get('/login', function (req, res, next) {
-});
-
 // login
 /**
  * @swagger
- * /login:
- *   post:
- *     summary: Login 후 Custom Model 조회 
+ * /customizations:
+ *   get:
+ *     summary: Custom Model 조회 (Login)
  *     tags: [AAS]
- *     consumes:
- *       - "application/json"
  *     produces:
  *       - "application/json"
  *     parameters:
- *       - in: "body"
- *         name: "body"
+ *       - in: "query"
+ *         name: "username"
  *         description: 
  *         required: true
- *         schema:
- *           type: object
- *           properties:
- *             username:
- *               type: string
- *             password:
- *               type: string
+ *       - in: "query"
+ *         name: "password"
+ *         description: 
+ *         required: true
  *     responses:
  *       200:
  *         description: Custom Model List가 성공적으로 조회 되었을 때
@@ -140,43 +132,26 @@ router.get('/login', function (req, res, next) {
  *           $ref: '#/definitions/ErrorMessage'
  */
 
-/* Log in */
-router.post('/login', function (req, res, next) {
-  aibril_username = req.body.username;
-  aibril_password = req.body.password;
-
-  var speechToText = new SpeechToTextV1({
-    username: req.body.username,
-    password: req.body.password,
+/* Get custom models (Log in) */
+router.get('/customizations', function (req, res, next) {
+  let speechToText = new SpeechToTextV1({
+    username: req.query.username,
+    password: req.query.password,
     url: aibril_url
   });
-  var body;
+  let body;
 
   // List Custom Model(LM) - GET /v1/customizations
   speechToText.listLanguageModels()
   .then(languageModels => {
-    var result = JSON.stringify(languageModels, null, 2);
-    body = JSON.parse(result);
-    console.debug(result);
-
-    // List 가 없는 경우, Custom Model 추가
-    if(languageModels.customizations.length==0) {
-      // Create Custom Model (LM) - POST /v1/customizations
-      const createLanguageModelParams = {
-        name: 'DEFAULT MODEL',
-        base_model_name: 'ko-KR_BroadbandModel',
-        description: 'Default custom language model.',
-      };
-      speechToText.createLanguageModel(createLanguageModelParams)
-      .then(languageModel => {
-        console.debug(JSON.stringify(languageModel, null, 2));
-      })
-      .catch(err => {
-        console.log('error:', err);
-      });
-    }
+    console.debug('kyubeom:', languageModels)
     // 404 코드 Return
     if (res.statusCode == 404) return res.status(404).send({ message: JSON.parse(body).message });
+    
+    // 정상 조회 완료 시
+    let result = JSON.stringify(languageModels, null, 2);
+    body = JSON.parse(result);
+    console.debug(result);
 
     // 조회 완료 시, 200 코드 Return
     res.status(200).send(body);
@@ -185,12 +160,11 @@ router.post('/login', function (req, res, next) {
     console.log('error:', err);
   });
 });
-
-
+      
 // Create Custom Model
 /**
  * @swagger
- * /model:
+ * /customizations:
  *   post:
  *     summary: Custom Model 추가 
  *     tags: [AAS]
@@ -234,7 +208,7 @@ router.post('/login', function (req, res, next) {
  *         schema:
  *           $ref: '#/definitions/ErrorMessage'
  */
-router.post('/model', function(req, res, next) {
+router.post('/customizations', function(req, res, next) {
   var body;
   var speechToText = new SpeechToTextV1({
     username: req.body.username,
