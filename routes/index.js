@@ -73,6 +73,38 @@
  *       allow_overwrite:
  *         type: boolean
  *         description:
+ *   RecognizeResult:
+ *     type: object
+ *     properties:
+ *       result_index:
+ *         type: integer
+ *         format: int32
+ *       results:
+ *         type: array
+ *         description: 인식 결과 배열
+ *         items:
+ *           type: object
+ *           properties:
+ *             alternatives:
+ *               type: array
+ *               description: 변환 결과 배열
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   confidence:
+ *                     type: number
+ *                     format: float
+ *                   timestamps:
+ *                     type: array
+ *                     items:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                   transcript:
+ *                     type: string
+ *             final:
+ *               type: boolean
+ *               
  * 
  */
 var express = require('express');
@@ -80,6 +112,8 @@ var router = express.Router();
 var request = require('request');
 var SpeechToTextV1 = require('ibm-watson/speech-to-text/v1');
 var fs = require('fs');
+var multer = require('multer'); // express에 multer모듈 적용 (for 파일업로드)
+var upload = multer({ dest: 'uploads/' })
 
 const env = process.env.NODE_ENV || 'development';
 const config = require('../config/config.json')[env];
@@ -122,14 +156,6 @@ router.get('/', function(req, res, next) {
  *               description: Custom Model list
  *               items: 
  *                 $ref: '#/definitions/CustomModel'
- *       400:
- *         description: 
- *         schema:
- *           $ref: '#/definitions/ErrorMessage'
- *       409:
- *         description: 
- *         schema:
- *           $ref: '#/definitions/ErrorMessage'
  */
 
 /* Get custom models (Log in) */
@@ -238,31 +264,35 @@ router.post('/customizations', function(req, res, next) {
 // Delete Custom Model
 /**
  * @swagger
- * /model:
+ * /customizations:
  *   delete:
- *     summary: Custom Model 추가 
+ *     summary: Custom Model 삭제
  *     tags: [AAS]
  *     consumes:
  *       - "application/json"
  *     produces:
  *       - "application/json"
  *     parameters:
- *       - in: "body"
+ *       - in: "query"
+ *         name: "username"
+ *         description: 
+ *         required: true
+ *       - in: "query"
+ *         name: "password"
+ *         description: 
+ *         required: true
+ *       - in: "query"
+ *         name: "customization_id"
+ *         description: 
+ *         required: true
+ *       - in: "formData"
  *         name: "body"
  *         description: 
  *         required: true
- *         schema:
- *           type: object
- *           properties:
- *             username:
- *               type: string
- *             password:
- *               type: string
- *             customization_id:
- *               type: string
+ *         type: file
  *     responses:
  *       200:
- *         description: Custom Model 삭제 성공
+ *         description: 음성 인식 성공
  *         schema:
  *           type: object
  *           description: Custom model ID
@@ -275,7 +305,7 @@ router.post('/customizations', function(req, res, next) {
  *         schema:
  *           $ref: '#/definitions/ErrorMessage'
  */
-router.delete('/model', function (req, res) {
+router.delete('/customizations', function (req, res) {
   var speechToText = new SpeechToTextV1({
     username: req.body.username,
     password: req.body.password,
@@ -294,6 +324,79 @@ router.delete('/model', function (req, res) {
   .catch(err => {
     console.log('error:', err);
   });
+});
+
+// Recognize Audio
+/**
+ * @swagger
+ * /recognize:
+ *   post:
+ *     summary: Audio Recognize
+ *     tags: [AAS]
+ *     consumes:
+ *       - "application/json"
+ *     produces:
+ *       - "application/json"
+ *     parameters:
+ *       - in: "body"
+ *         name: "body"
+ *         description: 
+ *         required: true
+ *         schema:
+ *           type: object
+ *           properties:
+ *             username:
+ *               type: string
+ *             password:
+ *               type: string
+ *             name:
+ *               type: string
+ *             base_model_name:
+ *               type: string
+ *             description:
+ *               type: string
+ *     responses:
+ *       201:
+ *         description: Custom Model 추가 성공
+ *         schema:
+ *           $ref: '#/definitions/RecognizeResult'
+ *       400:
+ *         description:
+ *         schema:
+ *           $ref: '#/definitions/ErrorMessage'
+ *       409:
+ *         description:
+ *         schema:
+ *           $ref: '#/definitions/ErrorMessage'
+ */
+router.post('/recognize', upload.single('videofile'), function(req, res, next) {
+  console.log(req.body.videofile)
+  var speechToText = new SpeechToTextV1({
+    username: req.query.username,
+    password: req.query.password,
+    // username: req.body.username,
+    // password: req.body.password,
+    url: aibril_url
+  });
+
+  // Recognize Audio - POST /v1/recognize
+  const recognizeParams = {
+    audio: fs.createReadStream('uploads/' + req.file.filename),
+    model: 'ko-KR_BroadbandModel',
+    inactivity_timeout: -1,
+    language_customization_id: req.query.customization_id,
+    timestamps: true,
+    content_type: 'audio/mp3',
+  };
+  
+  speechToText.recognize(recognizeParams)
+    .then(speechRecognitionResults => {
+      // 조회 완료 시, 200 코드 Return
+      res.status(200).send(speechRecognitionResults);
+    })
+    .catch(err => {
+      console.log('error:', err);
+    });
 });
 
 // Add Corpora & Training
@@ -339,8 +442,8 @@ router.delete('/model', function (req, res) {
  *         schema:
  *           $ref: '#/definitions/ErrorMessage'
  */
-/* Recognize Vedio */
-router.get('/vedio', function(req, res, next) {
+/* Recognize Video */
+router.get('/video', function(req, res, next) {
   // Recognize Audio - URI /v1/recognize
   var speechToText = new SpeechToTextV1({
     username: req.body.username,
