@@ -11,8 +11,8 @@
     "local" : {
         "aibril" : {
             "url" : "https://stream.aibril-watson.kr/speech-to-text/api",
-            "username" : "0ffed3d0-bf32-4da3-83d0-8816bffe96a1",
-            "password" : "IIViEXDGUJRy" 
+            "username" : "d25f5933-6d2c-4b8d-b217-28f1c9b5de22",
+            "password" : "bb3F4YIKYOAv" 
         },
         "logLevel": "debug"
     },
