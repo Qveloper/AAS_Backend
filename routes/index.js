@@ -273,35 +273,39 @@ router.post('/customizations', function(req, res, next) {
  *     produces:
  *       - "application/json"
  *     parameters:
- *       - in: "query"
- *         name: "username"
- *         description: 
- *         required: true
- *       - in: "query"
- *         name: "password"
- *         description: 
- *         required: true
- *       - in: "query"
- *         name: "customization_id"
- *         description: 
- *         required: true
- *       - in: "formData"
+ *       - in: "body"
  *         name: "body"
  *         description: 
  *         required: true
- *         type: file
+ *         schema:
+ *           type: object
+ *           properties:
+ *             username:
+ *               type: string
+ *             password:
+ *               type: string
+ *             customization_id:
+ *               type: string
  *     responses:
  *       200:
- *         description: 음성 인식 성공
+ *         description: Custom model 삭제 성공
  *         schema:
  *           type: object
  *           description: Custom model ID
  *       400:
- *         description:
+ *         description: Bad Request. The specified customization ID is invalid
+ *         schema:
+ *           $ref: '#/definitions/ErrorMessage'
+ *       401:
+ *         description: Unauthorized
  *         schema:
  *           $ref: '#/definitions/ErrorMessage'
  *       409:
- *         description:
+ *         description: Conflict
+ *         schema:
+ *           $ref: '#/definitions/ErrorMessage'
+ *       500: 
+ *         description: Internal Server Error
  *         schema:
  *           $ref: '#/definitions/ErrorMessage'
  */
