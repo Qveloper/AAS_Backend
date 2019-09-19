@@ -8,7 +8,7 @@ var fs = require("fs"),
 // Vue 에서 받은 Object를 srt 로 변환 후 srt2xmxel 변환하는 모듈
 
 // Example Code
-var xmltemplate = handlebars.compile(fs.readFileSync(__dirname + "/lib/template.hbs.xml").toString());
+var xmltemplate = handlebars.compile(fs.readFileSync(__dirname + "/xml_template/template.hbs.xml").toString());
 
 var srt2xmeml = {
 
@@ -30,23 +30,10 @@ var srt2xmeml = {
         }
     },
 
-    file: function(dirPath, fileName) {
-        var filePath = dirPath + "/" + fileName;
-        var newFilePath = filePath.replace(/\.srt$/, ".xml");
-        var data = fs.readFileSync(filePath).toString();
-        var json = srt2json.parseString(data);
-        var data = srt2xmeml.parseTemplateData(fileName, json);
-        var xmldata = xmltemplate(data).replace(/&amp;/g, '&');
-        fs.writeFileSync(newFilePath, xmldata);
-    },
-
-    directory: function(dirPath, argv) {
-        var fileNames = fs.readdirSync(dirPath);
-        for(var i in fileNames) {
-            if(fileNames[i].match(/\.srt$/)) {
-                srt2xmeml.file(dirPath, fileNames[i]);
-            }
-        }
+    build: function(srt) {
+        var json = srt2json.parseString(srt);
+        var data = srt2xmeml.parseTemplateData(new Date().toISOString() + ".xml", json);
+        return xmltemplate(data).replace(/&amp;/g, '&');
     },
 
     parseTemplateData: function(fileName, json) {
@@ -82,8 +69,4 @@ var srt2xmeml = {
 
 }
 
-srt2xmeml.init(argv);
-if(argv.dir)
-    return srt2xmeml.directory(argv.dir, argv);
-
-module.exports = xmlMaker;
+module.exports = srt2xmeml;

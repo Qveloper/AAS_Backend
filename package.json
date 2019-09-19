@@ -24,6 +24,7 @@
     "request": "^2.88.0",
     "should": "^13.2.3",
     "srt2xmeml": "^0.1.6",
+    "subtitle": "^2.0.3",
     "supertest": "^4.0.2",
     "swagger-jsdoc": "^3.4.0",
     "swagger-ui-express": "^4.0.7",

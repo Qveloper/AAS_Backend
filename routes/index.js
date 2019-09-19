@@ -104,8 +104,20 @@
  *                     type: string
  *             final:
  *               type: boolean
- *               
- * 
+ *   Subtitles:
+ *     type: array
+ *     descriptotion: 자막 객체를 담은 배열
+ *     items:
+ *       type: object
+ *       properties:
+ *         start:
+ *           type: number
+ *           format: float
+ *         end:
+ *           type: number
+ *           format: float
+ *         text:
+ *           type: string
  */
 var express = require('express');
 var router = express.Router();
@@ -113,14 +125,28 @@ var request = require('request');
 var SpeechToTextV1 = require('ibm-watson/speech-to-text/v1');
 var fs = require('fs');
 var multer = require('multer'); // express에 multer모듈 적용 (for 파일업로드)
+const { stringify } = require('subtitle') // Build srt
 var upload = multer({ dest: 'uploads/' })
 
 const env = process.env.NODE_ENV || 'development';
 const config = require('../config/config.json')[env];
+const xmlBuilder = require('../modules/xmlBuilder.js')
 
 var aibril_username = config.aibril.username;
 var aibril_password = config.aibril.password;
 var aibril_url = config.aibril.url;
+
+function sec2time (timeInSeconds) {
+  var pad = function(num, size) { return ('000' + num).slice(size * -1); },
+  time = parseFloat(timeInSeconds).toFixed(3),
+  hours = Math.floor(time / 60 / 60),
+  minutes = Math.floor(time / 60) % 60,
+  seconds = Math.floor(time - minutes * 60),
+  milliseconds = time.slice(-3);
+
+  return pad(hours, 2) + ':' + pad(minutes, 2) + ':' + pad(seconds, 2) + ',' + pad(milliseconds, 3);
+}
+
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
@@ -406,7 +432,7 @@ router.post('/recognize', upload.single('videofile'), function(req, res, next) {
 // Add Corpora & Training
 /**
  * @swagger
- * /vedio:
+ * /video:
  *   post:
  *     summary: Corpora 추가 및 Training
  *     tags: [AAS]
@@ -471,37 +497,82 @@ router.get('/video', function(req, res, next) {
   fs.createReadStream('./resources/speech.wav')
     .pipe(speechToText.recognizeUsingWebSocket({ content_type: 'audio/l16; rate=44100' }))
     .pipe(fs.createWriteStream('./transcription.txt'));
-});
-
+  });
+  
+  
 /* Export */
-router.get('/export', function(req, res, next) {
+/**
+ * @swagger
+ * /export:
+ *   post:
+ *     summary: Premiere Pro CC 용 .xmeml 파일 생성
+ *     tags: [AAS]
+ *     consumes:
+ *       - "application/json"
+ *     produces:
+ *       - "application/json"
+ *     parameters:
+ *       - in: "body"
+ *         name: "body"
+ *         description: srt 변환을 위한 Object
+ *         required: true
+ *         schema:
+ *           $ref: '#/definitions/Subtitles'
+ *     responses:
+ *       200:
+ *         description: .xml 파일 변환 성공
+ *         schema:
+ *           type: file
+ *       400:
+ *         description: Parameter가 잘못 되었을 경우
+ *         schema:
+ *           $ref: '#/definitions/ErrorMessage'
+ */
+router.post('/export', function(req, res, next) {
   // Add Corpus : /customizations/{customization_id}/corpora/corpus1
-  const addCorpusParams = {
-    customization_id: '{customization_id}',
-    corpus_file: fs.createReadStream('./corpus1.txt'),
-    corpus_name: 'corpus1',
-  };
   
-  speechToText.addCorpus(addCorpusParams)
-    .then(result => {
-      // Poll for corpus status.
-    })
-    .catch(err => {
-      console.log('error:', err);
-    });
+  // srtBuilder의 포맷으로 전달 된 요청의 body
+  let subtitles = req.body.subtitles;
+  subtitles.forEach(element => {
+    // STT Result 내 sec(소수)를 hh:mm:ss,ms(srt 포맷)으로 변환
+    element.start = sec2time(element.start)
+    element.end = sec2time(element.end)
+  });
+  // srt로 변환 (string) 
+  const srt = stringify(subtitles);
+  const result = xmlBuilder.build(srt);
 
-  // Training Language Model - POST /v1/customizations/{customization_id}/train
-    const trainLanguageModelParams = {
-      customization_id: '{customization_id}',
-    };
+  res.setHeader('Content-disposition', 'attachment; filename=' + new Date().toISOString() + ".xml");
+  res.setHeader('Content-type', 'application/xml');
+  res.send(result);
+
+  // Custom 영역 추후 개발
+  // const addCorpusParams = {
+  //   customization_id: '{customization_id}',
+  //   corpus_file: fs.createReadStream('./corpus1.txt'),
+  //   corpus_name: 'corpus1',
+  // };
   
-    speechToText.trainLanguageModel(trainLanguageModelParams)
-    .then(result => {
-      // Poll for language model status.
-     })
-    .catch(err => {
-      console.log('error:', err);
-    });
+  // speechToText.addCorpus(addCorpusParams)
+  //   .then(result => {
+  //     // Poll for corpus status.
+  //   })
+  //   .catch(err => {
+  //     console.log('error:', err);
+  //   });
+
+  // // Training Language Model - POST /v1/customizations/{customization_id}/train
+  //   const trainLanguageModelParams = {
+  //     customization_id: '{customization_id}',
+  //   };
+  
+  //   speechToText.trainLanguageModel(trainLanguageModelParams)
+  //   .then(result => {
+  //     // Poll for language model status.
+  //    })
+  //   .catch(err => {
+  //     console.log('error:', err);
+  //   });
 });
 
 module.exports = router;
