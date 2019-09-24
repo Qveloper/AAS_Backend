@@ -182,6 +182,8 @@ router.get('/', function(req, res, next) {
  *               description: Custom Model list
  *               items: 
  *                 $ref: '#/definitions/CustomModel'
+ *       401:
+ *         description: Credential 인증 실패 시
  */
 
 /* Get custom models (Log in) */
@@ -196,20 +198,16 @@ router.get('/customizations', function (req, res, next) {
   // List Custom Model(LM) - GET /v1/customizations
   speechToText.listLanguageModels()
   .then(languageModels => {
-    console.debug('kyubeom:', languageModels)
-    // 404 코드 Return
-    if (res.statusCode == 404) return res.status(404).send({ message: JSON.parse(body).message });
-    
     // 정상 조회 완료 시
     let result = JSON.stringify(languageModels, null, 2);
     body = JSON.parse(result);
-    console.debug(result);
 
     // 조회 완료 시, 200 코드 Return
     res.status(200).send(body);
   })
   .catch(err => {
-    console.log('error:', err);
+    // 401 코드 Return
+    if (err.code == 401) return res.status(401).send({ message: err.error });
   });
 });
       
@@ -252,13 +250,9 @@ router.get('/customizations', function (req, res, next) {
  *               type: string
  *               description: Custom model ID
  *       400:
- *         description:
- *         schema:
- *           $ref: '#/definitions/ErrorMessage'
- *       409:
- *         description:
- *         schema:
- *           $ref: '#/definitions/ErrorMessage'
+ *         description: 필수 parameter 누락시 (name, base_model_id)
+ *       401:
+ *         description: Credential 인증 실패 시
  */
 router.post('/customizations', function(req, res, next) {
   var body;
@@ -277,13 +271,15 @@ router.post('/customizations', function(req, res, next) {
   .then(languageModel => {
     var result = JSON.stringify(languageModel, null, 2);
     body = JSON.parse(result);
-    console.debug(result);
 
-    // 조회 완료 시, 200 코드 Return
-    res.status(200).send(body);
+    // 조회 완료 시, 201 코드 Return
+    res.status(201).send(body);
   })
   .catch(err => {
-  console.log('error:', err);
+    // 401 코드 Return
+    if (err.code == 401) return res.status(401).send({ message: err.error });
+    // 400 코드 Return
+    else return res.status(400).send({ message: err });
   });
 });
 
@@ -326,14 +322,6 @@ router.post('/customizations', function(req, res, next) {
  *         description: Unauthorized
  *         schema:
  *           $ref: '#/definitions/ErrorMessage'
- *       409:
- *         description: Conflict
- *         schema:
- *           $ref: '#/definitions/ErrorMessage'
- *       500: 
- *         description: Internal Server Error
- *         schema:
- *           $ref: '#/definitions/ErrorMessage'
  */
 router.delete('/customizations', function (req, res) {
   var speechToText = new SpeechToTextV1({
@@ -352,7 +340,10 @@ router.delete('/customizations', function (req, res) {
     res.status(200).send(result);
   })
   .catch(err => {
-    console.log('error:', err);
+    // 400 코드 Return
+    if (err.code == 400) return res.status(400).send({ message: err.message });
+    // 401 코드 Return
+    if (err.code == 401) return res.status(401).send({ message: err.message });
   });
 });
 
@@ -400,7 +391,6 @@ router.delete('/customizations', function (req, res) {
  *           $ref: '#/definitions/ErrorMessage'
  */
 router.post('/recognize', upload.single('videofile'), function(req, res, next) {
-  console.log(req.body.videofile)
   var speechToText = new SpeechToTextV1({
     username: req.query.username,
     password: req.query.password,
