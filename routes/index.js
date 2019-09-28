@@ -131,6 +131,7 @@ var upload = multer({ dest: 'uploads/' })
 const env = process.env.NODE_ENV || 'development';
 const config = require('../config/config.json')[env];
 const xmlBuilder = require('../modules/xmlBuilder.js')
+const txtBuilder = require('../modules/txtBuilder.js')
 
 var aibril_username = config.aibril.username;
 var aibril_password = config.aibril.password;
@@ -394,8 +395,6 @@ router.post('/recognize', upload.single('videofile'), function(req, res, next) {
   var speechToText = new SpeechToTextV1({
     username: req.query.username,
     password: req.query.password,
-    // username: req.body.username,
-    // password: req.body.password,
     url: aibril_url
   });
 
@@ -417,6 +416,96 @@ router.post('/recognize', upload.single('videofile'), function(req, res, next) {
     .catch(err => {
       console.log('error:', err);
     });
+});
+
+/* Export */
+/**
+ * @swagger
+ * /export:
+ *   post:
+ *     summary: Premiere Pro CC 용 .xmeml 파일 생성
+ *     tags: [AAS]
+ *     consumes:
+ *       - "application/json"
+ *     produces:
+ *       - "application/json"
+ *     parameters:
+ *       - in: "body"
+ *         name: "body"
+ *         description: srt 변환을 위한 Object
+ *         required: true
+ *         schema:
+ *           $ref: '#/definitions/Subtitles'
+ *     responses:
+ *       200:
+ *         description: .xml 파일 변환 성공
+ *         schema:
+ *           type: file
+ *       400:
+ *         description: Parameter가 잘못 되었을 경우
+ *         schema:
+ *           $ref: '#/definitions/ErrorMessage'
+ */
+router.post('/export', function(req, res, next) {
+  let speechToText = new SpeechToTextV1({
+    username: req.body.username,
+    password: req.body.password,
+    url: aibril_url
+  });
+
+  // srtBuilder의 포맷으로 전달 된 요청의 body
+  let subtitles = req.body.subtitles;
+
+  // txt파일 생성
+  txtBuilder.build(subtitles)
+
+  subtitles.forEach(element => {
+    // STT Result 내 sec(소수)를 hh:mm:ss,ms(srt 포맷)으로 변환
+    element.start = sec2time(element.start)
+    element.end = sec2time(element.end)
+  });
+
+  // srt로 변환 (string) 
+  const srt = stringify(subtitles);
+  const result = xmlBuilder.build(srt);
+
+  // Custom 영역 추후 개발
+  const addCorpusParams = {
+    customization_id: req.body.customization_id,
+    corpus_file: fs.createReadStream(txtBuilder.getFileName()),
+    corpus_name: req.body.fileName + '_' + new Date().toISOString(),
+  };
+  
+  speechToText.addCorpus(addCorpusParams)
+    .then(result => {
+      // Poll for corpus status.
+      // txtBuilder.delete();
+    })
+    .catch(err => {
+      // 400 코드 Return
+      if (err.code == 400) return res.status(400).send({ message: err.message });
+      console.log('error:', err);
+      // txtBuilder.delete();
+    });
+
+  res.setHeader('Content-disposition', 'attachment; filename=' + new Date().toISOString() + ".xml");
+  res.setHeader('Content-type', 'application/xml');
+  res.send(result);
+
+
+  // // Training Language Model - POST /v1/customizations/{customization_id}/train
+  //   const trainLanguageModelParams = {
+  //     customization_id: '{customization_id}',
+  //   };
+  
+  //   speechToText.trainLanguageModel(trainLanguageModelParams)
+  //   .then(result => {
+  //     // Poll for language model status.
+  //    })
+  //   .catch(err => {
+  //     console.log('error:', err);
+  //   });
+
 });
 
 // Add Corpora & Training
@@ -487,82 +576,6 @@ router.get('/video', function(req, res, next) {
   fs.createReadStream('./resources/speech.wav')
     .pipe(speechToText.recognizeUsingWebSocket({ content_type: 'audio/l16; rate=44100' }))
     .pipe(fs.createWriteStream('./transcription.txt'));
-  });
-  
-  
-/* Export */
-/**
- * @swagger
- * /export:
- *   post:
- *     summary: Premiere Pro CC 용 .xmeml 파일 생성
- *     tags: [AAS]
- *     consumes:
- *       - "application/json"
- *     produces:
- *       - "application/json"
- *     parameters:
- *       - in: "body"
- *         name: "body"
- *         description: srt 변환을 위한 Object
- *         required: true
- *         schema:
- *           $ref: '#/definitions/Subtitles'
- *     responses:
- *       200:
- *         description: .xml 파일 변환 성공
- *         schema:
- *           type: file
- *       400:
- *         description: Parameter가 잘못 되었을 경우
- *         schema:
- *           $ref: '#/definitions/ErrorMessage'
- */
-router.post('/export', function(req, res, next) {
-  // Add Corpus : /customizations/{customization_id}/corpora/corpus1
-  
-  // srtBuilder의 포맷으로 전달 된 요청의 body
-  let subtitles = req.body.subtitles;
-  subtitles.forEach(element => {
-    // STT Result 내 sec(소수)를 hh:mm:ss,ms(srt 포맷)으로 변환
-    element.start = sec2time(element.start)
-    element.end = sec2time(element.end)
-  });
-  // srt로 변환 (string) 
-  const srt = stringify(subtitles);
-  const result = xmlBuilder.build(srt);
-
-  res.setHeader('Content-disposition', 'attachment; filename=' + new Date().toISOString() + ".xml");
-  res.setHeader('Content-type', 'application/xml');
-  res.send(result);
-
-  // Custom 영역 추후 개발
-  // const addCorpusParams = {
-  //   customization_id: '{customization_id}',
-  //   corpus_file: fs.createReadStream('./corpus1.txt'),
-  //   corpus_name: 'corpus1',
-  // };
-  
-  // speechToText.addCorpus(addCorpusParams)
-  //   .then(result => {
-  //     // Poll for corpus status.
-  //   })
-  //   .catch(err => {
-  //     console.log('error:', err);
-  //   });
-
-  // // Training Language Model - POST /v1/customizations/{customization_id}/train
-  //   const trainLanguageModelParams = {
-  //     customization_id: '{customization_id}',
-  //   };
-  
-  //   speechToText.trainLanguageModel(trainLanguageModelParams)
-  //   .then(result => {
-  //     // Poll for language model status.
-  //    })
-  //   .catch(err => {
-  //     console.log('error:', err);
-  //   });
 });
 
 module.exports = router;

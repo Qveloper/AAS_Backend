@@ -8,21 +8,19 @@ let tmpFile;
 let txtBuilder = {
   build: (subArray) => {
     tmpFile = tmp.fileSync({keep: true});
-    console.debug(tmpFile.name);
     let txt = "";
 
     subArray.forEach((element) => {
       txt += element.text + os.EOL;
     });
 
-    fs.writeFile(tmpFile.name, txt, (err) => {
-      if (err) {
-        console.debug('error: ', err)
-      }
-    });
+    fs.writeFileSync(tmpFile.name, txt);
   },
   delete: () => {
     tmpFile.removeCallback();
+  },
+  getFileName: () => {
+    return tmpFile.name;
   }
 }
 
