@@ -15,12 +15,11 @@ describe('index.js', () => {
       it('customization_id를 반환한다.', (done) => {
         request(app)
           .post('/customizations')
-          .send({ 
-            username: testCredential.username, 
-            password: testCredential.password, 
+          .auth(testCredential.username, testCredential.password)
+          .send({
             name: "test", 
             base_model_name: "ko-KR_BroadbandModel",
-            description: "for Test"
+            description: "for Test",
           })
           .expect(201)
           .end((err, res) => {
@@ -39,9 +38,8 @@ describe('index.js', () => {
       it('name 누락 시, 400 에러를 반환한다.', (done) => {
         request(app)
           .post('/customizations')
+          .auth(testCredential.username, testCredential.password)
           .send({ 
-            username: testCredential.username, 
-            password: testCredential.password, 
             name: "", 
             base_model_name: "ko-KR_BroadbandModel",
             description: "for Test"
@@ -52,9 +50,8 @@ describe('index.js', () => {
       it('base_model_name 누락 시, 400 에러를 반환한다.', (done) => {
         request(app)
           .post('/customizations')
+          .auth(testCredential.username, testCredential.password)
           .send({ 
-            username: testCredential.username, 
-            password: testCredential.password, 
             name: "test", 
             base_model_name: "",
             description: "for Test"
@@ -65,9 +62,8 @@ describe('index.js', () => {
       it('인증 실패 시, 401 에러를 반환한다.', (done) => {
         request(app)
           .post('/customizations')
+          .auth('test', 'test')
           .send({ 
-            username: "test", 
-            password: "test", 
             name: "test", 
             base_model_name: "ko-KR_BroadbandModel",
             description: "for Test"
@@ -84,7 +80,7 @@ describe('index.js', () => {
       before((done) => {
         request(app)
           .get('/customizations')
-          .query({ username: testCredential.username, password: testCredential.password })
+          .auth(testCredential.username, testCredential.password)
           .expect(200)
           .end((err, res) => {
             if (err) {
@@ -107,7 +103,7 @@ describe('index.js', () => {
       it('인증 실패 시, 401 에러를 반환한다.', (done) => {
         request(app)
           .get('/customizations')
-          .query({ username: "test", password: "test" })
+          .auth('test', 'test')
           .expect(401)
           .end(done);
       });
@@ -116,12 +112,11 @@ describe('index.js', () => {
   // Customizations 삭제
   describe('DELETE /customizations 는', () => {
     describe('성공시', () => {
-      it('200 코드를 반환한다.', () => {
+      it('200 코드를 반환한다.', (done) => {
         request(app)
           .delete('/customizations')
+          .auth(testCredential.username, testCredential.password)
           .send({ 
-            username: testCredential.username, 
-            password: testCredential.password, 
             customization_id: testCustomModel.customization_id
           })
           .expect(200)
@@ -138,9 +133,8 @@ describe('index.js', () => {
       it('customization_id가 유효하지 않을 경우, 400 에러를 반환한다.', (done) => {
         request(app)
           .delete('/customizations')
+          .auth(testCredential.username, testCredential.password)
           .send({ 
-            username: testCredential.username, 
-            password: testCredential.password, 
             customization_id: "test"
           })
           .expect(400)
@@ -149,9 +143,8 @@ describe('index.js', () => {
       it('인증 실패 시, 401 에러를 반환한다.', (done) => {
         request(app)
           .delete('/customizations')
+          .auth('test', 'test')
           .send({ 
-            username: "test", 
-            password: "test", 
             customization_id: testCustomModel.customization_id
           })
           .expect(401)

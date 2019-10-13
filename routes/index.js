@@ -4,6 +4,11 @@
  * tags:
  *   name: AAS
  *   description: [Custom Model]
+ * securityDefinitions:
+ *   basicAuth:
+ *     type: basic
+ * security:
+ *   - basicAuth: []
  * definitions:
  *   ErrorMessage:
  *     type: object
@@ -122,6 +127,7 @@
 var express = require('express');
 var router = express.Router();
 var request = require('request');
+var auth = require('basic-auth');
 var SpeechToTextV1 = require('ibm-watson/speech-to-text/v1');
 var fs = require('fs');
 var multer = require('multer'); // express에 multer모듈 적용 (for 파일업로드)
@@ -161,17 +167,10 @@ router.get('/', function(req, res, next) {
  *   get:
  *     summary: Custom Model 조회 (Login)
  *     tags: [AAS]
+ *     security:
+ *       - basicAuth: []
  *     produces:
  *       - "application/json"
- *     parameters:
- *       - in: "query"
- *         name: "username"
- *         description: 
- *         required: true
- *       - in: "query"
- *         name: "password"
- *         description: 
- *         required: true
  *     responses:
  *       200:
  *         description: Custom Model List가 성공적으로 조회 되었을 때
@@ -189,9 +188,11 @@ router.get('/', function(req, res, next) {
 
 /* Get custom models (Log in) */
 router.get('/customizations', function (req, res, next) {
+  var credential = auth(req);
+  console.debug("Basic-auth 'usernane'=" + credential.name+", 'password'="+credential.pass);
   let speechToText = new SpeechToTextV1({
-    username: req.query.username,
-    password: req.query.password,
+    username: credential.name,
+    password: credential.pass,
     url: aibril_url
   });
   let body;
@@ -219,6 +220,8 @@ router.get('/customizations', function (req, res, next) {
  *   post:
  *     summary: Custom Model 추가 
  *     tags: [AAS]
+ *     security:
+ *       - basicAuth: []
  *     consumes:
  *       - "application/json"
  *     produces:
@@ -231,10 +234,6 @@ router.get('/customizations', function (req, res, next) {
  *         schema:
  *           type: object
  *           properties:
- *             username:
- *               type: string
- *             password:
- *               type: string
  *             name:
  *               type: string
  *             base_model_name:
@@ -257,12 +256,15 @@ router.get('/customizations', function (req, res, next) {
  */
 router.post('/customizations', function(req, res, next) {
   var body;
+  var credential = auth(req);
+  console.debug("Basic-auth 'usernane'=" + credential.name+", 'password'="+credential.pass);
   var speechToText = new SpeechToTextV1({
-    username: req.body.username,
-    password: req.body.password,
+    username: credential.name,
+    password: credential.pass,
     url: aibril_url
   });
   // Create Custom Model (LM) - POST /v1/customizations
+  console.debug("Basic-auth 'name'=" + req.body.name+", 'base_model_name'="+req.body.base_model_name);
   const createLanguageModelParams = {
     name: req.body.name,
     base_model_name: req.body.base_model_name,
@@ -291,6 +293,8 @@ router.post('/customizations', function(req, res, next) {
  *   delete:
  *     summary: Custom Model 삭제
  *     tags: [AAS]
+ *     security:
+ *       - basicAuth: []
  *     consumes:
  *       - "application/json"
  *     produces:
@@ -303,10 +307,6 @@ router.post('/customizations', function(req, res, next) {
  *         schema:
  *           type: object
  *           properties:
- *             username:
- *               type: string
- *             password:
- *               type: string
  *             customization_id:
  *               type: string
  *     responses:
@@ -325,9 +325,11 @@ router.post('/customizations', function(req, res, next) {
  *           $ref: '#/definitions/ErrorMessage'
  */
 router.delete('/customizations', function (req, res) {
+  var credential = auth(req);
+  console.debug("Basic-auth 'usernane'=" + credential.name+", 'password'="+credential.pass);
   var speechToText = new SpeechToTextV1({
-    username: req.body.username,
-    password: req.body.password,
+    username: credential.name,
+    password: credential.pass,
     url: aibril_url
   });
   // Delete Custom Model (LM) - Delete /v1/customizations
@@ -355,6 +357,8 @@ router.delete('/customizations', function (req, res) {
  *   post:
  *     summary: Audio Recognize
  *     tags: [AAS]
+ *     security:
+ *       - basicAuth: []
  *     consumes:
  *       - "application/json"
  *     produces:
@@ -367,10 +371,6 @@ router.delete('/customizations', function (req, res) {
  *         schema:
  *           type: object
  *           properties:
- *             username:
- *               type: string
- *             password:
- *               type: string
  *             name:
  *               type: string
  *             base_model_name:
@@ -391,10 +391,11 @@ router.delete('/customizations', function (req, res) {
  *         schema:
  *           $ref: '#/definitions/ErrorMessage'
  */
-router.post('/recognize', upload.single('videofile'), function(req, res, next) {
+router.post('/recognize', upload.single('videofile'), function (req, res, next) {
+  var credential = auth(req);
   var speechToText = new SpeechToTextV1({
-    username: req.query.username,
-    password: req.query.password,
+    username: credential.name,
+    password: credential.pass,
     url: aibril_url
   });
 
@@ -425,6 +426,8 @@ router.post('/recognize', upload.single('videofile'), function(req, res, next) {
  *   post:
  *     summary: Premiere Pro CC 용 .xmeml 파일 생성
  *     tags: [AAS]
+ *     security:
+ *       - basicAuth: []
  *     consumes:
  *       - "application/json"
  *     produces:
@@ -446,15 +449,16 @@ router.post('/recognize', upload.single('videofile'), function(req, res, next) {
  *         schema:
  *           $ref: '#/definitions/ErrorMessage'
  */
-router.post('/export', function(req, res, next) {
+router.post('/export', function (req, res, next) {
+  var credential = auth(req);
   let speechToText = new SpeechToTextV1({
-    username: req.body.username,
-    password: req.body.password,
+    username: credential.name,
+    password: credential.pass,
     url: aibril_url
   });
 
   // srtBuilder의 포맷으로 전달 된 요청의 body
-  let subtitles = req.body.subtitles;
+  let subtitles = req.body.data.subtitles;
 
   // txt파일 생성
   txtBuilder.build(subtitles)
@@ -471,7 +475,7 @@ router.post('/export', function(req, res, next) {
 
   // Custom 영역 추후 개발
   const addCorpusParams = {
-    customization_id: req.body.customization_id,
+    customization_id: req.body.data.customization_id,
     corpus_file: fs.createReadStream(txtBuilder.getFileName()),
     corpus_name: req.body.fileName + '_' + new Date().toISOString(),
   };
@@ -515,6 +519,8 @@ router.post('/export', function(req, res, next) {
  *   post:
  *     summary: Corpora 추가 및 Training
  *     tags: [AAS]
+ *     security:
+ *       - basicAuth: []
  *     consumes:
  *       - "application/json"
  *     produces:
@@ -554,9 +560,10 @@ router.post('/export', function(req, res, next) {
 /* Recognize Video */
 router.get('/video', function(req, res, next) {
   // Recognize Audio - URI /v1/recognize
-  var speechToText = new SpeechToTextV1({
-    username: req.body.username,
-    password: req.body.password,
+  var credential = auth(req);
+  let speechToText = new SpeechToTextV1({
+    username: credential.name,
+    password: credential.pass,
     url: aibril_url
   });
   var params = {
