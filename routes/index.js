@@ -189,7 +189,6 @@ router.get('/', function(req, res, next) {
 /* Get custom models (Log in) */
 router.get('/customizations', function (req, res, next) {
   var credential = auth(req);
-  console.debug("Basic-auth 'usernane'=" + credential.name+", 'password'="+credential.pass);
   let speechToText = new SpeechToTextV1({
     username: credential.name,
     password: credential.pass,
@@ -257,14 +256,12 @@ router.get('/customizations', function (req, res, next) {
 router.post('/customizations', function(req, res, next) {
   var body;
   var credential = auth(req);
-  console.debug("Basic-auth 'usernane'=" + credential.name+", 'password'="+credential.pass);
   var speechToText = new SpeechToTextV1({
     username: credential.name,
     password: credential.pass,
     url: aibril_url
   });
   // Create Custom Model (LM) - POST /v1/customizations
-  console.debug("Basic-auth 'name'=" + req.body.name+", 'base_model_name'="+req.body.base_model_name);
   const createLanguageModelParams = {
     name: req.body.name,
     base_model_name: req.body.base_model_name,
@@ -326,7 +323,6 @@ router.post('/customizations', function(req, res, next) {
  */
 router.delete('/customizations', function (req, res) {
   var credential = auth(req);
-  console.debug("Basic-auth 'usernane'=" + credential.name+", 'password'="+credential.pass);
   var speechToText = new SpeechToTextV1({
     username: credential.name,
     password: credential.pass,
@@ -473,46 +469,11 @@ router.post('/export', function (req, res, next) {
   const srt = stringify(subtitles);
   const result = xmlBuilder.build(srt);
 
-  // Custom 영역 추후 개발
-  const addCorpusParams = {
-    customization_id: req.body.data.customization_id,
-    corpus_file: fs.createReadStream(txtBuilder.getFileName()),
-    corpus_name: req.body.fileName + '_' + new Date().toISOString(),
-  };
-  
-  speechToText.addCorpus(addCorpusParams)
-    .then(result => {
-      // Poll for corpus status.
-      // txtBuilder.delete();
-    })
-    .catch(err => {
-      // 400 코드 Return
-      if (err.code == 400) return res.status(400).send({ message: err.message });
-      console.log('error:', err);
-      // txtBuilder.delete();
-    });
-
   res.setHeader('Content-disposition', 'attachment; filename=' + new Date().toISOString() + ".xml");
   res.setHeader('Content-type', 'application/xml');
-  res.send(result);
-
-
-  // // Training Language Model - POST /v1/customizations/{customization_id}/train
-  //   const trainLanguageModelParams = {
-  //     customization_id: '{customization_id}',
-  //   };
-  
-  //   speechToText.trainLanguageModel(trainLanguageModelParams)
-  //   .then(result => {
-  //     // Poll for language model status.
-  //    })
-  //   .catch(err => {
-  //     console.log('error:', err);
-  //   });
-
+  res.send(result);  
 });
 
-// Add Corpora & Training
 /**
  * @swagger
  * /video:
@@ -584,5 +545,175 @@ router.get('/video', function(req, res, next) {
     .pipe(speechToText.recognizeUsingWebSocket({ content_type: 'audio/l16; rate=44100' }))
     .pipe(fs.createWriteStream('./transcription.txt'));
 });
+
+//Add Corpus
+/**
+ * @swagger
+ * /corpus:
+ *   post:
+ *     summary: Custom Model 삭제
+ *     tags: [AAS]
+ *     security:
+ *       - basicAuth: []
+ *     consumes:
+ *       - "application/json"
+ *     produces:
+ *       - "application/json"
+ *     parameters:
+ *       - in: "body"
+ *         name: "body"
+ *         description: 
+ *         required: true
+ *         schema:
+ *           type: object
+ *           properties:
+ *             customization_id:
+ *               type: string
+ *     responses:
+ *       200:
+ *         description: Custom model 삭제 성공
+ *         schema:
+ *           type: object
+ *           description: Custom model ID
+ *       400:
+ *         description: Bad Request. The specified customization ID is invalid
+ *         schema:
+ *           $ref: '#/definitions/ErrorMessage'
+ *       401:
+ *         description: Unauthorized
+ *         schema:
+ *           $ref: '#/definitions/ErrorMessage'
+ */
+router.post('/corpus', function (req, res) {
+  var credential = auth(req);
+  var speechToText = new SpeechToTextV1({
+    username: credential.name,
+    password: credential.pass,
+    url: aibril_url
+  });
+
+  // srtBuilder의 포맷으로 전달 된 요청의 body
+  let subtitles = req.body.data.subtitles;
+
+  // txt파일 생성
+  txtBuilder.build(subtitles)
+
+  // Corpus File Name
+  // let corpusName = req.body.data.fileName + '_' + new Date().toISOString()
+  let corpusName = req.body.data.fileName + '_' + 'text'
+
+  // Add a coprpus - POST /v1/customizations/{customization_id}/corpora/{corpus_name}
+  const addCorpusParams = {
+    customization_id: req.body.data.customization_id,
+    corpus_file: fs.createReadStream(txtBuilder.getFileName()),
+    corpus_name: corpusName,
+  };
+  
+  speechToText.addCorpus(addCorpusParams)
+    .then(addCorpusResult => {
+      // Poll for corpus status.
+      addCorpusResult.corpus_name = corpusName;
+      res.status(200).send(addCorpusResult);
+    })
+    .catch(err => {
+      // 400 코드 Return
+      if (err.code == 400) return res.status(400).send({ message: err.message });
+      // 401 코드 Return
+      if (err.code == 401) return res.status(401).send({ message: err.message });
+    });
+  });
+
+// Get a Corpus
+router.get('/corpus', function (req, res) {
+  var credential = auth(req);
+  // console.debug('credential', credential.name + credential.pass);
+  var speechToText = new SpeechToTextV1({
+    username: credential.name,
+    password: credential.pass,
+    url: aibril_url
+  });
+
+  const getCorpusParams = {
+    customization_id: req.query.customization_id,
+    corpus_name: req.query.corpus_name,
+  };
+  
+  speechToText.getCorpus(getCorpusParams)
+    .then(corpus => {
+      console.log(JSON.stringify(corpus, null, 2));
+      res.status(200).send(corpus)
+    })
+    .catch(err => {
+       // 400 코드 Return
+       if (err.code == 400) return res.status(400).send({ message: err.message });
+       // 401 코드 Return
+       if (err.code == 401) return res.status(401).send({ message: err.message });
+    });
+});
+
+// Train a Custom Model
+/**
+ * @swagger
+ * /train:
+ *   post:
+ *     summary: Custom Model 트레이닝
+ *     tags: [AAS]
+ *     security:
+ *       - basicAuth: []
+ *     consumes:
+ *       - "application/json"
+ *     produces:
+ *       - "application/json"
+ *     parameters:
+ *       - in: "body"
+ *         name: "body"
+ *         description: 
+ *         required: true
+ *         schema:
+ *           type: object
+ *           properties:
+ *             customization_id:
+ *               type: string
+ *     responses:
+ *       200:
+ *         description: Custom Model 트레이닝 성공
+ *         schema:
+ *           type: object
+ *           description: Custom model ID
+ *       400:
+ *         description: Bad Request. The specified customization ID is invalid
+ *         schema:
+ *           $ref: '#/definitions/ErrorMessage'
+ *       401:
+ *         description: Unauthorized
+ *         schema:
+ *           $ref: '#/definitions/ErrorMessage'
+ */
+router.post('/train', function (req, res) {
+  var credential = auth(req);
+  var speechToText = new SpeechToTextV1({
+    username: credential.name,
+    password: credential.pass,
+    url: aibril_url
+  });
+
+  // Train a Custom Model - POST /v1/customizations/{customization_id}/train
+  const trainLanguageModelParams = {
+    customization_id: req.body.data.customization_id,
+  };
+  
+  speechToText.trainLanguageModel(trainLanguageModelParams)
+    .then(trainLanguageModelresult => {
+      // Poll for language model status.
+      res.status(200).send(trainLanguageModelresult);
+     })
+    .catch(err => {
+       // 400 코드 Return
+       if (err.code == 400) return res.status(400).send({ message: err.message });
+       // 401 코드 Return
+       if (err.code == 401) return res.status(401).send({ message: err.message });
+    });
+})
+
 
 module.exports = router;
