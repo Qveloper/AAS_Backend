@@ -599,8 +599,7 @@ router.post('/corpus', function (req, res) {
   txtBuilder.build(subtitles)
 
   // Corpus File Name
-  // let corpusName = req.body.data.fileName + '_' + new Date().toISOString()
-  let corpusName = req.body.data.fileName + '_' + 'text'
+  let corpusName = req.body.data.fileName + '_' + new Date().toISOString()
 
   // Add a coprpus - POST /v1/customizations/{customization_id}/corpora/{corpus_name}
   const addCorpusParams = {
@@ -640,7 +639,7 @@ router.get('/corpus', function (req, res) {
   
   speechToText.getCorpus(getCorpusParams)
     .then(corpus => {
-      console.log(JSON.stringify(corpus, null, 2));
+      // console.log(JSON.stringify(corpus, null, 2));
       res.status(200).send(corpus)
     })
     .catch(err => {
@@ -712,6 +711,71 @@ router.post('/train', function (req, res) {
        if (err.code == 400) return res.status(400).send({ message: err.message });
        // 401 코드 Return
        if (err.code == 401) return res.status(401).send({ message: err.message });
+    });
+})
+
+// Get a Custom Model
+/**
+ * @swagger
+ * /customization/:customization_id/:
+ *   post:
+ *     summary: Custom Model 트레이닝
+ *     tags: [AAS]
+ *     security:
+ *       - basicAuth: []
+ *     consumes:
+ *       - "application/json"
+ *     produces:
+ *       - "application/json"
+ *     parameters:
+ *       - in: "body"
+ *         name: "body"
+ *         description: 
+ *         required: true
+ *         schema:
+ *           type: object
+ *           properties:
+ *             customization_id:
+ *               type: string
+ *     responses:
+ *       200:
+ *         description: Custom Model 트레이닝 성공
+ *         schema:
+ *           type: object
+ *           description: Custom model ID
+ *       400:
+ *         description: Bad Request. The specified customization ID is invalid
+ *         schema:
+ *           $ref: '#/definitions/ErrorMessage'
+ *       401:
+ *         description: Unauthorized
+ *         schema:
+ *           $ref: '#/definitions/ErrorMessage'
+ */
+// Get a Custom Model - GET /v1/customizations/{customization_id}
+router.get('/customization', function (req, res) {
+  var credential = auth(req);
+  var speechToText = new SpeechToTextV1({
+    username: credential.name,
+    password: credential.pass,
+    url: aibril_url
+  });
+
+  // Get a Custom Model
+  const getLanguageModelParams = {
+    customization_id: req.query.customization_id,
+  };
+  
+  speechToText.getLanguageModel(getLanguageModelParams)
+    .then(languageModel => {
+      // console.debug('suyeon', languageModel)
+      res.status(200).send(languageModel);
+    })
+    .catch(err => {
+      // 400 코드 Return
+      if (err.code == 400) return res.status(400).send({ message: err.message });
+      // 401 코드 Return
+      if (err.code == 401) return res.status(401).send({ message: err.message });
     });
 })
 
