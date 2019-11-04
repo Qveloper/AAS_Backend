@@ -132,7 +132,7 @@ var SpeechToTextV1 = require('ibm-watson/speech-to-text/v1');
 var fs = require('fs');
 var multer = require('multer'); // express에 multer모듈 적용 (for 파일업로드)
 const { stringify } = require('subtitle') // Build srt
-var upload = multer({ dest: 'uploads/' })
+var upload = multer({ dest: 'public/uploads/' })
 
 const env = process.env.NODE_ENV || 'development';
 const config = require('../config/config.json')[env];
@@ -397,7 +397,7 @@ router.post('/recognize', upload.single('videofile'), function (req, res, next) 
 
   // Recognize Audio - POST /v1/recognize
   const recognizeParams = {
-    audio: fs.createReadStream('uploads/' + req.file.filename),
+    audio: fs.createReadStream('public/uploads/' + req.file.filename),
     model: 'ko-KR_BroadbandModel',
     inactivity_timeout: -1,
     language_customization_id: req.query.customization_id,
@@ -407,6 +407,7 @@ router.post('/recognize', upload.single('videofile'), function (req, res, next) 
   
   speechToText.recognize(recognizeParams)
     .then(speechRecognitionResults => {
+      speechRecognitionResults.videoUrl = req.file.filename
       // 조회 완료 시, 200 코드 Return
       res.status(200).send(speechRecognitionResults);
     })
