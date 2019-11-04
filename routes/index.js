@@ -129,15 +129,16 @@ var router = express.Router();
 var request = require('request');
 var auth = require('basic-auth');
 var SpeechToTextV1 = require('ibm-watson/speech-to-text/v1');
-var fs = require('fs');
 var multer = require('multer'); // express에 multer모듈 적용 (for 파일업로드)
 const { stringify } = require('subtitle') // Build srt
 var upload = multer({ dest: 'public/uploads/' })
 
-const env = process.env.NODE_ENV || 'development';
+const env = 'local';
 const config = require('../config/config.json')[env];
 const xmlBuilder = require('../modules/xmlBuilder.js')
 const txtBuilder = require('../modules/txtBuilder.js')
+const ffmpeg = require('fluent-ffmpeg');
+const fs = require('fs');
 
 var aibril_username = config.aibril.username;
 var aibril_password = config.aibril.password;
@@ -153,6 +154,8 @@ function sec2time (timeInSeconds) {
 
   return pad(hours, 2) + ':' + pad(minutes, 2) + ':' + pad(seconds, 2) + ',' + pad(milliseconds, 3);
 }
+
+//let testMulter = multer().single('videofile')
 
 
 /* GET home page. */
@@ -375,7 +378,7 @@ router.delete('/customizations', function (req, res) {
  *               type: string
  *     responses:
  *       201:
- *         description: Custom Model 추가 성공
+ *         descriptionFETCH_CUSTOM: Custom Model 추가 성공
  *         schema:
  *           $ref: '#/definitions/RecognizeResult'
  *       400:
@@ -388,32 +391,49 @@ router.delete('/customizations', function (req, res) {
  *           $ref: '#/definitions/ErrorMessage'
  */
 router.post('/recognize', upload.single('videofile'), function (req, res, next) {
+  // upload 미들웨어가 파일시스템에 upload 역할(videofile)->해당 파일 난수(filename)이 req가 됨
   var credential = auth(req);
+  
   var speechToText = new SpeechToTextV1({
     username: credential.name,
     password: credential.pass,
     url: aibril_url
   });
 
-  // Recognize Audio - POST /v1/recognize
-  const recognizeParams = {
-    audio: fs.createReadStream('public/uploads/' + req.file.filename),
-    model: 'ko-KR_BroadbandModel',
-    inactivity_timeout: -1,
-    language_customization_id: req.query.customization_id,
-    timestamps: true,
-    content_type: 'audio/mp3',
-  };
-  
-  speechToText.recognize(recognizeParams)
-    .then(speechRecognitionResults => {
-      speechRecognitionResults.videoUrl = req.file.filename
-      // 조회 완료 시, 200 코드 Return
-      res.status(200).send(speechRecognitionResults);
-    })
-    .catch(err => {
-      console.log('error:', err);
-    });
+  /**
+   * 업로드한 영상을 .mp3로 변환하여 음성인식
+   */
+  console.log('**** ffmpeg 변환 시작 ****');
+  const outStream = fs.createWriteStream('public/uploads/'+req.file.filename+'.mp3');
+
+  ffmpeg('public/uploads/' + req.file.filename)
+  // .setFfmpegPath("C:/ffmpeg/bin/ffmpeg.exe") // 운영체제에 따라서 설정이 필요할 수 있음
+  .toFormat('mp3')
+  .on('error', function (err) {
+      console.log('An error occured: ' + err.message);
+  })
+  .on('end', function() {
+    console.log("**** ffmpeg 변환 종료 ****");
+    const recognizeParams = {
+      audio: fs.createReadStream('public/uploads/' + req.file.filename + '.mp3'),
+      model: 'ko-KR_BroadbandModel',
+      inactivity_timeout: -1,
+      language_customization_id: req.query.customization_id,
+      timestamps: true,
+      content_type: 'audio/mp3',
+    };
+    
+    speechToText.recognize(recognizeParams)
+      .then(speechRecognitionResults => {
+        // 조회 완료 시, 200 코드 Return
+        speechRecognitionResults.videoUrl = req.file.filename
+        res.status(200).send(speechRecognitionResults);
+      })
+      .catch(err => {
+        console.log('error:', err);
+      });
+  })
+  .pipe(outStream, { end: true });
 });
 
 /* Export */
