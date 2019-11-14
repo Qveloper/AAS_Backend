@@ -127,6 +127,7 @@
 var express = require('express');
 var router = express.Router();
 var request = require('request');
+var path = require('path');
 var auth = require('basic-auth');
 var SpeechToTextV1 = require('ibm-watson/speech-to-text/v1');
 var multer = require('multer'); // express에 multer모듈 적용 (for 파일업로드)
@@ -160,7 +161,8 @@ function sec2time (timeInSeconds) {
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
-  res.render('index', { title: 'Express' });
+  // res.render('index', { title: 'Express' });
+  res.sendFile(path.join(__dirname, '../public/dist', 'index.html'))
 });
 
 // login
