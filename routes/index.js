@@ -141,8 +141,6 @@ const txtBuilder = require('../modules/txtBuilder.js')
 const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
 
-var aibril_username = config.aibril.username;
-var aibril_password = config.aibril.password;
 var aibril_url = config.aibril.url;
 
 function sec2time (timeInSeconds) {
@@ -438,7 +436,7 @@ router.post('/recognize', upload.single('videofile'), function (req, res, next) 
   .pipe(outStream, { end: true });
 });
 
-/* Export */
+/* Export XML */
 /**
  * @swagger
  * /export:
@@ -468,13 +466,8 @@ router.post('/recognize', upload.single('videofile'), function (req, res, next) 
  *         schema:
  *           $ref: '#/definitions/ErrorMessage'
  */
-router.post('/export', function (req, res, next) {
+router.post('/export/xml', function (req, res, next) {
   var credential = auth(req);
-  let speechToText = new SpeechToTextV1({
-    username: credential.name,
-    password: credential.pass,
-    url: aibril_url
-  });
 
   // srtBuilder의 포맷으로 전달 된 요청의 body
   let subtitles = req.body.data.subtitles;
@@ -494,6 +487,52 @@ router.post('/export', function (req, res, next) {
 
   res.setHeader('Content-disposition', 'attachment; filename=' + new Date().toISOString() + ".xml");
   res.setHeader('Content-type', 'application/xml');
+  res.send(result);  
+});
+
+/* Export Text */
+/**
+ * @swagger
+ * /export:
+ *   post:
+ *     summary: 자막 Script(Text) 파일 생성
+ *     tags: [AAS]
+ *     security:
+ *       - basicAuth: []
+ *     consumes:
+ *       - "application/json"
+ *     produces:
+ *       - "application/json"
+ *     parameters:
+ *       - in: "body"
+ *         name: "body"
+ *         description: txt 변환을 위한 Object
+ *         required: true
+ *         schema:
+ *           $ref: '#/definitions/Subtitles'
+ *     responses:
+ *       200:
+ *         description: .txt 파일 변환 성공
+ *         schema:
+ *           type: file
+ *       400:
+ *         description: Parameter가 잘못 되었을 경우
+ *         schema:
+ *           $ref: '#/definitions/ErrorMessage'
+ */
+router.post('/export/text', function (req, res) {
+  console.debug('suyeon', '/export/text')
+  var credential = auth(req);
+
+  // srtBuilder의 포맷으로 전달 된 요청의 body
+  let subtitles = req.body.data.subtitles;
+
+  // txt파일 생성
+  txtBuilder.build(subtitles)
+  const result = fs.readFileSync(txtBuilder.getFileName())
+
+  res.setHeader('Content-disposition', 'attachment; filename=' + new Date().toISOString() + ".txt");
+  res.setHeader('Content-type', 'text/plain');
   res.send(result);  
 });
 
@@ -569,7 +608,7 @@ router.get('/video', function(req, res, next) {
     .pipe(fs.createWriteStream('./transcription.txt'));
 });
 
-//Add Corpus
+// Add Corpus
 /**
  * @swagger
  * /corpus:
