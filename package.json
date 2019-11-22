@@ -7,7 +7,18 @@
     "dev": "NODE_ENV=development node ./bin/www",
     "local": "NODE_ENV=local node ./bin/www",
     "prod": "NODE_ENV=production node ./bin/www",
-    "test": "NODE_ENV=$ENV mocha"
+    "test": "NODE_ENV=$ENV mocha",
+    "build": "pkg . --out-path ../"
+  },
+  "bin": {
+    "app": "./bin/www"
+  },
+  "pkg": {
+    "assets": [
+      "./modules/xml_template/template.hbs.xml",
+      "views/**/*",
+      "public/**/*"
+    ]
   },
   "dependencies": {
     "basic-auth": "^2.0.1",
@@ -32,5 +43,8 @@
     "tmp": "^0.1.0",
     "winston": "^3.2.1",
     "winston-daily-rotate-file": "^3.10.0"
+  },
+  "devDependencies": {
+    "pkg": "^4.4.0"
   }
 }
