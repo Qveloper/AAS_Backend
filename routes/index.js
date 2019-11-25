@@ -406,14 +406,32 @@ router.post('/recognize', upload.single('videofile'), function (req, res, next) 
   console.log('**** ffmpeg 변환 시작 ****');
   const outStream = fs.createWriteStream('public/uploads/'+req.file.filename+'.mp3');
 
+  console.log('* [ffmpeg] mp4 변환 시작 *');
+  ffmpeg('public/uploads/'+req.file.filename)
+  .withVideoCodec('libx264')
+  .withAudioCodec('libmp3lame')
+  .toFormat('mp4')
+  .on('error', function (err) {
+    console.log("* [ffmpeg] mp4 변환 살패 *");
+    console.log('An error occurred: ' + err.message);
+  })
+  .on('end', function() {
+    console.log("* [ffmpeg] mp4 변환 종료 *");
+    console.log('**** ffmpeg 변환 종료 ****');
+  })
+  .saveToFile('public/uploads/'+req.file.filename+'.mp4');
+  // .pipe(mp4OutStream, { end: true });
+  
+
+  console.log('* [ffmpeg] mp3 변환 시작 * ');
   ffmpeg('public/uploads/' + req.file.filename)
   // .setFfmpegPath("C:/ffmpeg/bin/ffmpeg.exe") // 운영체제에 따라서 설정이 필요할 수 있음
   .toFormat('mp3')
   .on('error', function (err) {
-      console.log('An error occured: ' + err.message);
+    console.log('An error occurred: ' + err.message);
   })
   .on('end', function() {
-    console.log("**** ffmpeg 변환 종료 ****");
+    console.log("* [ffmpeg] mp3 변환 종료 *");
     const recognizeParams = {
       audio: fs.createReadStream('public/uploads/' + req.file.filename + '.mp3'),
       model: 'ko-KR_BroadbandModel',
@@ -426,7 +444,7 @@ router.post('/recognize', upload.single('videofile'), function (req, res, next) 
     speechToText.recognize(recognizeParams)
       .then(speechRecognitionResults => {
         // 조회 완료 시, 200 코드 Return
-        speechRecognitionResults.videoUrl = req.file.filename
+        speechRecognitionResults.videoUrl = req.file.filename + '.mp4'
         res.status(200).send(speechRecognitionResults);
       })
       .catch(err => {
