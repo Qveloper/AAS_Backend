@@ -28,6 +28,7 @@ app.use(morganLogger('tiny', { "stream": logger.stream }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.use(express.static(path.join(process.cwd(), 'public')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api', indexRouter);
