@@ -30,7 +30,7 @@
     "ibm-watson": "^4.4.0",
     "jade": "~1.11.0",
     "mocha": "^6.2.0",
-    "moment-timezone": "^0.5.26",
+    "moment-timezone": "^0.5.35",
     "morgan": "~1.9.1",
     "multer": "^1.4.2",
     "request": "^2.88.0",
