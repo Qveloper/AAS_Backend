@@ -24,7 +24,7 @@
     "basic-auth": "^2.0.1",
     "cookie-parser": "~1.4.4",
     "debug": "~2.6.9",
-    "express": "~4.16.1",
+    "express": "~4.17.3",
     "fluent-ffmpeg": "^2.1.2",
     "http-errors": "~1.6.3",
     "ibm-watson": "^4.4.0",
